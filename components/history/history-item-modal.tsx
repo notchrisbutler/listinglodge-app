@@ -6,7 +6,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { HistoryItem, ListingHistoryItem, SocialMediaHistoryItem, AudienceHistoryItem } from "@/app/history/types";
+import { HistoryItem, ListingHistoryItem, SocialMediaHistoryItem, AudienceHistoryItem } from "@/app/(dash)/history/types";
 import { ClipboardIcon, ClockIcon } from "@heroicons/react/24/outline";
 import { format } from "date-fns";
 import { useState } from "react";
