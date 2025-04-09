@@ -9,7 +9,7 @@ export function DashboardFooter() {
         <div className="flex h-14 items-center justify-between">
           <div className="w-72 pl-4 flex items-center border-r border-border/50">
             <p className="text-xs text-muted-foreground">
-              © 2024 ListingLodge AI. All rights reserved.
+              &copy; {new Date().getFullYear()} ListingLodge. All rights reserved.
             </p>
           </div>
           <div className="flex-1 flex items-center justify-end px-4 sm:px-6 lg:px-8">
