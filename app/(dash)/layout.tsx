@@ -52,12 +52,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
       <div className="relative z-10 h-full bg-background/60">
         <TokensWrapper>
-          <div className="min-h-screen flex flex-col">
+          <div className="h-full flex flex-col">
             <DashboardSidebar />
-            <div className="lg:pl-72 flex flex-col flex-1">
-              <div className="flex-1 flex flex-col overflow-auto">
+            <div className="lg:pl-72 flex flex-col flex-1 overflow-hidden">
+              <main className="flex-1 overflow-y-auto">
                 {children}
-              </div>
+              </main>
               <DashboardFooter />
             </div>
           </div>

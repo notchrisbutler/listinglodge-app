@@ -66,7 +66,7 @@ export default function AuthLayout({
           </div>
         </header>
         
-        <div className="min-h-screen flex flex-col">
+        <div className="h-full flex flex-col">
           <div className="flex flex-col flex-1">
             <main className="flex-1 flex flex-col overflow-auto">
               {children}

@@ -25,8 +25,8 @@ export default async function RootLayout({
   const { data: { session } } = await supabase.auth.getSession()
 
   return (
-    <html lang="en" suppressHydrationWarning>
-      <body className={inter.className}>
+    <html lang="en" suppressHydrationWarning className="h-full">
+      <body className={cn(inter.className, 'h-full overflow-hidden')}>
         <ThemeProvider
             attribute="class"
             defaultTheme="light"
