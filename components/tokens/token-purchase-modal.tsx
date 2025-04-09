@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react";
+import React, { useState, useEffect } from 'react'
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import {
@@ -14,168 +14,160 @@ import {
 } from "@/components/ui/dialog";
 import { WalletIcon, CheckCircleIcon, CreditCardIcon } from "@heroicons/react/24/outline";
 import { ArrowPathIcon } from "@heroicons/react/20/solid";
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
+import { Label } from '@/components/ui/label'
+import { Loader2 } from 'lucide-react'
+import { useAuth } from '@/components/providers/auth-provider' // Import useAuth
+import { createStripeCheckoutSession } from '@/app/actions/stripe' // Import Server Action
+import { toast } from 'sonner' // Or your preferred toast library
 
-// Token purchase options - replace with actual Stripe product data
-export const tokenOptions = [
-  { id: "prod_1", tokens: 10, price: "$10", stripeProductId: "price_placeholder_1" },
-  { id: "prod_2", tokens: 30, price: "$27 (10% off)", stripeProductId: "price_placeholder_2" },
-  { id: "prod_3", tokens: 75, price: "$60 (20% off)", stripeProductId: "price_placeholder_3" },
-  { id: "prod_4", tokens: 150, price: "$105 (30% off)", stripeProductId: "price_placeholder_4" },
-];
-
-// Define payment steps
-type PaymentStep = "select" | "confirm" | "processing" | "complete";
-
-interface TokenPurchaseModalProps {
-  isOpen: boolean;
-  onOpenChange: (open: boolean) => void;
+// Define package structure
+interface TokenPackage {
+  id: '30' | '100' | '250'
+  tokens: number
+  price: number // Price in USD (or your currency)
+  description: string
 }
 
-export function TokenPurchaseModal({ isOpen, onOpenChange }: TokenPurchaseModalProps) {
-  const [selectedOption, setSelectedOption] = useState<typeof tokenOptions[0] | null>(null);
-  const [paymentStep, setPaymentStep] = useState<PaymentStep>("select");
+const tokenPackages: TokenPackage[] = [
+  {
+    id: '30',
+    tokens: 10,
+    price: 6.99,
+    description: '$6.99',
+  },
+  {
+    id: '100',
+    tokens: 100,
+    price: 14.99,
+    description: '$14.99',
+  },
+  {
+    id: '250',
+    tokens: 250,
+    price: 32.99,
+    description: '$32.99',
+  },
+]
 
-  // Function to proceed to confirmation step
-  const handleProceedToConfirm = () => {
-    if (!selectedOption) return;
-    setPaymentStep("confirm");
-  };
+interface TokenPurchaseModalProps {
+  isOpen: boolean
+  onClose: () => void
+}
 
-  // Placeholder function for handling actual payment confirmation
-  const handleConfirmPayment = () => {
-    if (!selectedOption) return;
-    console.log("Simulating Stripe payment for:", selectedOption);
-    setPaymentStep("processing");
+export function TokenPurchaseModal({
+  isOpen,
+  onClose,
+}: TokenPurchaseModalProps) {
+  const [selectedPackage, setSelectedPackage] = useState<TokenPackage['id']>(
+    tokenPackages[0].id // Default to the first package
+  )
+  const [isLoading, setIsLoading] = useState(false)
+  const { user } = useAuth() // Get user from context
 
-    // Simulate API call/payment processing delay
-    setTimeout(() => {
-      console.log("Payment simulation complete for:", selectedOption);
-      setPaymentStep("complete");
-      // In a real app, you might trigger a refetch of user credits here
-    }, 2500); // Simulate a 2.5-second delay
-  };
-
-  // Reset state when modal closes or changes state
-  const handleOpenChange = (open: boolean) => {
-    onOpenChange(open);
-    if (!open) {
-      // Delay reset slightly to allow closing animation
-      setTimeout(() => {
-        setSelectedOption(null);
-        setPaymentStep("select");
-      }, 150);
+  // Reset state when modal closes or opens
+  useEffect(() => {
+    if (isOpen) {
+      setIsLoading(false)
+      setSelectedPackage(tokenPackages[0].id)
     }
-  };
+  }, [isOpen])
+
+  const handlePurchaseClick = async () => {
+    if (!selectedPackage || !user) {
+      // Should ideally not happen if button isn't disabled, but good practice
+      toast.error('Please select a package and ensure you are logged in.')
+      return
+    }
+
+    setIsLoading(true)
+
+    try {
+      // Call the Server Action
+      const result = await createStripeCheckoutSession({
+        packageId: selectedPackage,
+      })
+
+      // Server Action handles redirect on success.
+      // If an error object is returned, handle it here.
+      if (result?.error) {
+          toast.error(result.error)
+          setIsLoading(false)
+      }
+      // If the server action redirects, this part might not be reached,
+      // or might be reached briefly before navigation.
+      // No need to manually redirect here if the action uses `redirect()`.
+
+    } catch (error: any) {
+      // Catch unexpected errors during action call (less common with server actions)
+      console.error('Error calling createStripeCheckoutSession:', error)
+      toast.error('An unexpected error occurred. Please try again.')
+      setIsLoading(false)
+    }
+
+    // We don't set isLoading false here if redirecting,
+    // as the component might unmount or navigation takes over.
+    // If the action returns an error, we set it above.
+  }
+
+  const handleModalChange = (open: boolean) => {
+    if (!open) {
+      onClose()
+    }
+  }
 
   return (
-    <Dialog open={isOpen} onOpenChange={handleOpenChange}>
-      {/* Add Credits Modal - Content changes based on paymentStep */}
-      <DialogContent className="sm:max-w-md min-h-[350px] flex flex-col">
+    <Dialog open={isOpen} onOpenChange={handleModalChange}>
+      <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
-          <DialogTitle>
-            {paymentStep === "select" && "Add More Credits"}
-            {paymentStep === "confirm" && "Confirm Purchase"}
-            {paymentStep === "processing" && "Processing Payment"}
-            {paymentStep === "complete" && "Purchase Successful"}
-          </DialogTitle>
+          <DialogTitle>Purchase Tokens</DialogTitle>
           <DialogDescription>
-            {paymentStep === "select" &&
-              "Select a token package to top up your account."}
-            {paymentStep === "confirm" &&
-              "Review your selection and proceed to payment."}
-            {paymentStep === "processing" &&
-              "Please wait while we securely process your payment."}
-            {paymentStep === "complete" &&
-              `Successfully added ${selectedOption?.tokens} tokens to your account!`}
+            Select a package below to add tokens to your wallet. You will be
+            redirected to Stripe to complete your purchase.
           </DialogDescription>
         </DialogHeader>
 
-        <div className="flex-grow py-4 overflow-y-auto">
-          {paymentStep === "select" && (
-            <div className="grid gap-4">
-              {tokenOptions.map((option) => (
-                <Card
-                  key={option.id}
-                  className={`cursor-pointer border p-4 rounded-md transition-all ${
-                    selectedOption?.id === option.id
-                      ? "border-primary ring-2 ring-primary/50"
-                      : "border-border/50 hover:border-primary/50"
-                  }`}
-                  onClick={() => setSelectedOption(option)}
-                >
-                  <div className="flex justify-between items-center">
-                    <div>
-                      <p className="font-semibold">{option.tokens} Tokens</p>
-                      <p className="text-sm text-muted-foreground">{option.price}</p>
-                    </div>
-                    {selectedOption?.id === option.id && (
-                      <CheckCircleIcon className="h-5 w-5 text-primary" />
-                    )}
-                  </div>
-                </Card>
-              ))}
-            </div>
-          )}
-
-          {paymentStep === "confirm" && selectedOption && (
-            <div className="space-y-4">
-              <Card className="border border-border/50 shadow-md bg-background p-4">
-                <p className="font-semibold">You are purchasing:</p>
-                <p className="text-lg font-bold">{selectedOption.tokens} Tokens</p>
-                <p className="text-muted-foreground">{selectedOption.price}</p>
-              </Card>
-              {/* Placeholder for Stripe Elements */}
-              <div className="border border-dashed border-border rounded-md p-6 text-center text-muted-foreground">
-                <CreditCardIcon className="h-8 w-8 mx-auto mb-2" />
-                <p>Stripe Payment Element Placeholder</p>
-                <p className="text-xs">(Secure payment form would appear here)</p>
-              </div>
-            </div>
-          )}
-
-          {paymentStep === "processing" && (
-            <div className="flex flex-col items-center justify-center h-full space-y-4">
-              <ArrowPathIcon className="h-10 w-10 animate-spin text-primary" />
-              <p className="text-muted-foreground">Processing your secure payment...</p>
-            </div>
-          )}
-
-          {paymentStep === "complete" && (
-            <div className="flex flex-col items-center justify-center h-full space-y-4 text-center">
-              <CheckCircleIcon className="h-12 w-12 text-green-500" />
-              <p className="text-lg font-semibold">Payment Successful!</p>
-              <p className="text-muted-foreground">
-                {selectedOption?.tokens} tokens have been added to your wallet.
-              </p>
-            </div>
-          )}
+        <div className="py-4">
+          <RadioGroup
+            value={selectedPackage}
+            onValueChange={(value: TokenPackage['id']) =>
+              setSelectedPackage(value)
+            }
+            className="grid grid-cols-1 gap-4"
+          >
+            {tokenPackages.map((pkg) => (
+              <Label
+                key={pkg.id}
+                htmlFor={`package-${pkg.id}`}
+                className={`flex items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground ${
+                  selectedPackage === pkg.id ? 'border-primary' : ''
+                }`}
+              >
+                <div className="flex items-center space-x-3">
+                  <RadioGroupItem value={pkg.id} id={`package-${pkg.id}`} />
+                  <span className="font-medium">
+                    {pkg.tokens} Tokens
+                  </span>
+                </div>
+                <span>{pkg.description}</span>
+              </Label>
+            ))}
+          </RadioGroup>
         </div>
 
-        <DialogFooter className="mt-auto pt-4 border-t border-border">
-          {paymentStep === "select" && (
-            <Button
-              onClick={handleProceedToConfirm}
-              disabled={!selectedOption}
-            >
-              Continue
-            </Button>
-          )}
-          {paymentStep === "confirm" && (
-            <>
-              <Button variant="outline" onClick={() => setPaymentStep("select")}>Back</Button>
-              <Button onClick={handleConfirmPayment}>
-                <CreditCardIcon className="h-4 w-4 mr-2" />
-                Confirm & Pay {selectedOption?.price}
-              </Button>
-            </>
-          )}
-          {paymentStep === "complete" && (
-             <DialogClose asChild>
-                 <Button>Done</Button>
-             </DialogClose>
-          )}
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose} disabled={isLoading}>
+            Cancel
+          </Button>
+          <Button
+            onClick={handlePurchaseClick}
+            disabled={!selectedPackage || isLoading}
+          >
+            {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            Purchase
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
-  );
+  )
 } 

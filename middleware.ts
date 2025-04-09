@@ -57,13 +57,22 @@ export async function middleware(request: NextRequest) {
 
   const { data: { session } } = await supabase.auth.getSession()
 
-  // If no session and not on auth pages, redirect to login
-  if (!session && !request.nextUrl.pathname.startsWith('/login') && !request.nextUrl.pathname.startsWith('/register')) {
+  // Add the auth callback path to the public paths
+  const isPublicPath = 
+    request.nextUrl.pathname.startsWith('/login') || 
+    request.nextUrl.pathname.startsWith('/register') ||
+    request.nextUrl.pathname.startsWith('/auth/callback')
+
+  // If no session and not on public paths, redirect to login
+  if (!session && !isPublicPath) {
     return NextResponse.redirect(new URL('/login', request.url))
   }
 
-  // If session and on auth pages, redirect to dashboard
-  if (session && (request.nextUrl.pathname.startsWith('/login') || request.nextUrl.pathname.startsWith('/register'))) {
+  // If session and on auth pages (but not the callback page), redirect to dashboard
+  if (session && 
+    (request.nextUrl.pathname.startsWith('/login') || 
+     request.nextUrl.pathname.startsWith('/register')) && 
+    !request.nextUrl.pathname.startsWith('/auth/callback')) {
     return NextResponse.redirect(new URL('/', request.url))
   }
 
