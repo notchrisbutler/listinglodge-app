@@ -24,6 +24,8 @@ import {
 import Link from "next/link";
 import { useState } from "react";
 import { usePathname } from "next/navigation";
+import { logout } from "@/app/actions/auth";
+import { useAuth } from "@/components/providers/auth-provider";
 
 const navigation = [
   { name: "Generate", href: "/", icon: HomeIcon },
@@ -36,6 +38,7 @@ const navigation = [
 export function DashboardSidebar() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const pathname = usePathname();
+  const { user } = useAuth();
 
   const UserMenu = () => (
     <div className="flex flex-col bg-background/75 border-t border-border/50">
@@ -44,7 +47,7 @@ export function DashboardSidebar() {
           <UserCircleIcon className="h-8 w-8 text-primary" />
         </div>
         <div className="flex flex-col">
-          <span className="text-sm font-medium">user@example.com</span>
+          <span className="text-sm font-medium">{user?.email}</span>
           <span className="text-xs text-muted-foreground">Professional Plan</span>
         </div>
       </div>
@@ -53,16 +56,16 @@ export function DashboardSidebar() {
           <WalletIcon className="h-4 w-4 text-primary/70" />
           Credits: <span className="font-medium text-foreground">100</span>
         </div>
-        <Button 
-          variant="outline" 
-          className="w-full justify-start gap-2 hover:bg-primary/5 hover:text-primary"
-          onClick={() => {
-            console.log("Logging out...");
-          }}
-        >
-          <ArrowRightOnRectangleIcon className="h-4 w-4" />
-          Log out
-        </Button>
+        <form action={logout}>
+          <Button 
+            type="submit"
+            variant="outline" 
+            className="w-full justify-start gap-2 hover:bg-primary/5 hover:text-primary"
+          >
+            <ArrowRightOnRectangleIcon className="h-4 w-4" />
+            Log out
+          </Button>
+        </form>
       </div>
     </div>
   );
@@ -142,7 +145,7 @@ export function DashboardSidebar() {
           <DropdownMenuContent className="w-56 bg-background/95 backdrop-blur-sm border-border/70" align="end" forceMount>
             <DropdownMenuLabel className="font-normal">
               <div className="flex flex-col space-y-1">
-                <p className="text-sm font-medium leading-none">user@example.com</p>
+                <p className="text-sm font-medium leading-none">{user?.email}</p>
                 <p className="text-xs leading-none text-muted-foreground">
                   Professional Plan
                 </p>
@@ -153,15 +156,19 @@ export function DashboardSidebar() {
               </div>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <DropdownMenuItem>
-              Account settings
+            <DropdownMenuItem asChild>
+              <Link href="/account">Account settings</Link>
             </DropdownMenuItem>
-            <DropdownMenuItem>
-              Billing
+            <DropdownMenuItem asChild>
+              <Link href="/account/billing">Billing</Link>
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem>
-              Log out
+            <DropdownMenuItem asChild>
+              <form action={logout} className="w-full">
+                <button type="submit" className="w-full text-left">
+                  Log out
+                </button>
+              </form>
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

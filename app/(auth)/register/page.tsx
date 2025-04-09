@@ -19,8 +19,13 @@ import {
 } from "@/components/ui/accordion"
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { register } from '@/app/actions/auth';
+import { useState } from 'react';
 
 export default function RegisterPage() {
+  const [error, setError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+
   const containerVariants = {
     hidden: { opacity: 0 },
     visible: { opacity: 1, transition: { staggerChildren: 0.3 } },
@@ -36,6 +41,18 @@ export default function RegisterPage() {
     open: { opacity: 1, height: "auto", transition: { duration: 0.3 } },
   };
 
+  async function handleSubmit(formData: FormData) {
+    setIsLoading(true);
+    setError(null);
+    
+    const result = await register(formData);
+    
+    if (result?.error) {
+      setError(result.error);
+      setIsLoading(false);
+    }
+  }
+
   return (
     <motion.div
       className="flex flex-col items-center justify-center min-h-screen gap-8 p-4"
@@ -43,6 +60,14 @@ export default function RegisterPage() {
       initial="hidden"
       animate="visible"
     >
+      {error && (
+        <motion.div 
+          variants={itemVariants}
+          className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative w-full max-w-4xl"
+        >
+          {error}
+        </motion.div>
+      )}
 
       {/* Flex container for FAQ and Registration Card */}
       <div className="flex flex-col md:flex-row items-start justify-center gap-8 w-full max-w-4xl">
@@ -105,41 +130,66 @@ export default function RegisterPage() {
                 Enter your information to create an account
               </CardDescription>
             </CardHeader>
-            <CardContent className="grid gap-4">
-              <div className="grid gap-2">
-                <Label htmlFor="first-name">First name</Label>
-                <Input id="first-name" placeholder="Max" required className="bg-input/70" />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="last-name">Last name</Label>
-                <Input id="last-name" placeholder="Robinson" required className="bg-input/70" />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="email">Email</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="m@example.com"
-                  required
-                  className="bg-input/70"
-                />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="password">Password</Label>
-                <Input id="password" type="password" className="bg-input/70" />
-              </div>
-              <Button type="submit" className="w-full mt-4">
-                Create an account
-              </Button>
-            </CardContent>
-            <CardFooter className="flex flex-col items-center gap-2 pt-4">
-               <div className="text-sm text-muted-foreground">
-                Already have an account?{" "}
-                <Link href="/login" className="underline hover:text-primary">
-                  Sign in
-                </Link>
-              </div>
-            </CardFooter>
+            <form action={handleSubmit}>
+              <CardContent className="grid gap-4">
+                <div className="grid gap-2">
+                  <Label htmlFor="first-name">First name</Label>
+                  <Input 
+                    id="first-name" 
+                    name="first-name" 
+                    placeholder="Max" 
+                    required 
+                    className="bg-input/70" 
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="last-name">Last name</Label>
+                  <Input 
+                    id="last-name" 
+                    name="last-name" 
+                    placeholder="Robinson" 
+                    required 
+                    className="bg-input/70" 
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="email">Email</Label>
+                  <Input
+                    id="email"
+                    name="email"
+                    type="email"
+                    placeholder="m@example.com"
+                    required
+                    className="bg-input/70"
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="password">Password</Label>
+                  <Input 
+                    id="password" 
+                    name="password" 
+                    type="password" 
+                    className="bg-input/70" 
+                    required 
+                  />
+                </div>
+                <Button 
+                  type="submit" 
+                  className="w-full mt-4"
+                  disabled={isLoading}
+                >
+                  {isLoading ? 'Creating account...' : 'Create an account'}
+                </Button>
+              </CardContent>
+              <CardFooter className="flex flex-col items-center gap-2 pt-4">
+                 <div className="text-sm text-muted-foreground">
+                  Already have an account?{" "}
+                  <Link href="/login" className="underline hover:text-primary">
+                    Sign in
+                  </Link>
+                </div>
+              </CardFooter>
+            </form>
           </Card>
         </motion.div>
 
