@@ -20,6 +20,7 @@ import { Loader2 } from 'lucide-react'
 import { useAuth } from '@/components/providers/auth-provider' // Import useAuth
 import { createStripeCheckoutSession } from '@/app/actions/stripe' // Import Server Action
 import { toast } from 'sonner' // Or your preferred toast library
+import { useSearchParams } from 'next/navigation' // Import to detect checkout return
 
 // Define package structure
 interface TokenPackage {
@@ -32,7 +33,7 @@ interface TokenPackage {
 const tokenPackages: TokenPackage[] = [
   {
     id: '30',
-    tokens: 10,
+    tokens: 30,
     price: 6.99,
     description: '$6.99',
   },
@@ -63,7 +64,37 @@ export function TokenPurchaseModal({
     tokenPackages[0].id // Default to the first package
   )
   const [isLoading, setIsLoading] = useState(false)
-  const { user } = useAuth() // Get user from context
+  const { user, refreshTokenBalance } = useAuth() // Get refreshTokenBalance
+  const searchParams = useSearchParams() // To detect checkout returns
+
+  // Check for successful payment and refresh balance if needed
+  useEffect(() => {
+    const checkoutSuccess = searchParams.get('checkout_success')
+    const sessionId = searchParams.get('session_id')
+    
+    if (checkoutSuccess === 'true' && sessionId) {
+      console.log('Detected successful Stripe checkout, refreshing token balance')
+      // Refresh token balance to reflect the purchase
+      refreshTokenBalance()
+      // Show success toast with soft purple styling
+      toast.success('Payment successful! Your tokens have been added to your account.', {
+        duration: 10000, // Auto-dismiss after 10 seconds
+        closeButton: false,
+        className: 'checkout-success-toast',
+        position: 'top-center', // Position at the top center of the screen
+        style: {
+          padding: '16px',
+        },
+        action: {
+          label: 'Dismiss',
+          onClick: () => {
+            // Any additional actions on dismissal if needed
+          }
+        },
+        dismissible: true,
+      })
+    }
+  }, [searchParams, refreshTokenBalance])
 
   // Reset state when modal closes or opens
   useEffect(() => {
@@ -75,39 +106,50 @@ export function TokenPurchaseModal({
 
   const handlePurchaseClick = async () => {
     if (!selectedPackage || !user) {
-      // Should ideally not happen if button isn't disabled, but good practice
-      toast.error('Please select a package and ensure you are logged in.')
+      toast.error('Please select a package and ensure you are logged in.', {
+        position: 'top-center',
+      })
       return
     }
 
     setIsLoading(true)
 
     try {
-      // Call the Server Action
+      // Call the Server Action with current URL for redirection back to tokens page
       const result = await createStripeCheckoutSession({
         packageId: selectedPackage,
+        returnUrl: window.location.href.split('?')[0], // Use current URL without query params
       })
 
-      // Server Action handles redirect on success.
-      // If an error object is returned, handle it here.
+      // Check for errors first
       if (result?.error) {
-          toast.error(result.error)
-          setIsLoading(false)
+        toast.error(result.error, {
+          position: 'top-center',
+        })
+        setIsLoading(false)
+        return
       }
-      // If the server action redirects, this part might not be reached,
-      // or might be reached briefly before navigation.
-      // No need to manually redirect here if the action uses `redirect()`.
+
+      // Check for URL in the response
+      if (result?.url) {
+        // Client-side redirect to Stripe checkout
+        window.location.href = result.url
+        return // Important: stop execution here as we're redirecting
+      }
+
+      // If we got here, something unexpected happened
+      toast.error('Something went wrong. Please try again.', {
+        position: 'top-center',
+      })
+      setIsLoading(false)
 
     } catch (error: any) {
-      // Catch unexpected errors during action call (less common with server actions)
       console.error('Error calling createStripeCheckoutSession:', error)
-      toast.error('An unexpected error occurred. Please try again.')
+      toast.error('An unexpected error occurred. Please try again.', {
+        position: 'top-center',
+      })
       setIsLoading(false)
     }
-
-    // We don't set isLoading false here if redirecting,
-    // as the component might unmount or navigation takes over.
-    // If the action returns an error, we set it above.
   }
 
   const handleModalChange = (open: boolean) => {
@@ -118,41 +160,44 @@ export function TokenPurchaseModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={handleModalChange}>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
           <DialogTitle>Purchase Tokens</DialogTitle>
           <DialogDescription>
-            Select a package below to add tokens to your wallet. You will be
-            redirected to Stripe to complete your purchase.
+            Select a package below to add tokens to your wallet.
           </DialogDescription>
         </DialogHeader>
 
-        <div className="py-4">
-          <RadioGroup
-            value={selectedPackage}
-            onValueChange={(value: TokenPackage['id']) =>
-              setSelectedPackage(value)
-            }
-            className="grid grid-cols-1 gap-4"
-          >
-            {tokenPackages.map((pkg) => (
-              <Label
-                key={pkg.id}
-                htmlFor={`package-${pkg.id}`}
-                className={`flex items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground ${
-                  selectedPackage === pkg.id ? 'border-primary' : ''
-                }`}
-              >
-                <div className="flex items-center space-x-3">
-                  <RadioGroupItem value={pkg.id} id={`package-${pkg.id}`} />
-                  <span className="font-medium">
-                    {pkg.tokens} Tokens
-                  </span>
-                </div>
-                <span>{pkg.description}</span>
-              </Label>
-            ))}
-          </RadioGroup>
+        <div className="py-4 space-y-6">
+          {/* One-time purchase options */}
+          <div>
+            <h3 className="text-sm font-medium mb-3">One-time Purchase</h3>
+            <RadioGroup
+              value={selectedPackage}
+              onValueChange={(value: TokenPackage['id']) =>
+                setSelectedPackage(value)
+              }
+              className="grid grid-cols-1 gap-4"
+            >
+              {tokenPackages.map((pkg) => (
+                <Label
+                  key={pkg.id}
+                  htmlFor={`package-${pkg.id}`}
+                  className={`flex items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground ${
+                    selectedPackage === pkg.id ? 'border-primary' : ''
+                  }`}
+                >
+                  <div className="flex items-center space-x-3">
+                    <RadioGroupItem value={pkg.id} id={`package-${pkg.id}`} />
+                    <span className="font-medium">
+                      {pkg.tokens} Tokens
+                    </span>
+                  </div>
+                  <span>{pkg.description}</span>
+                </Label>
+              ))}
+            </RadioGroup>
+          </div>
         </div>
 
         <DialogFooter>
@@ -164,7 +209,7 @@ export function TokenPurchaseModal({
             disabled={!selectedPackage || isLoading}
           >
             {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Purchase
+            Purchase Tokens
           </Button>
         </DialogFooter>
       </DialogContent>

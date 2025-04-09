@@ -47,14 +47,7 @@ export default function AccountPage() {
                 <CardTitle className="text-lg font-medium">Billing Information</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="font-medium">Professional Plan</p>
-                    <p className="text-sm text-muted-foreground">$49/month</p>
-                  </div>
-                  <Button variant="outline">Change Plan</Button>
-                </div>
-                <div className="pt-4 border-t">
+                <div className="pt-4">
                   <p className="font-medium mb-2">Payment Method</p>
                   <div className="flex items-center justify-between">
                     <div className="flex items-center">

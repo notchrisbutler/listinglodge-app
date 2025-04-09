@@ -30,6 +30,8 @@
     --chart-4: 43 74% 66%;
     --chart-5: 27 87% 67%;
     --radius: 0.5rem;
+    --success: 142.1 70.6% 45.3%;
+    --success-foreground: 144.9 80.4% 10%;
   }
 }
 
@@ -80,4 +82,49 @@
   .animate-blob-alt {
     animation: blob-alt 25s infinite cubic-bezier(0.4, 0, 0.2, 1);
   }
+}
+
+/* Custom styles for the checkout success toast */
+.checkout-success-toast {
+  transform: scale(1);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+  z-index: 9999 !important;
+  background-color: hsl(262 52% 95%) !important; /* Soft purple background */
+  color: hsl(262 52% 20%) !important; /* Darker purple text */
+  border: 2px solid hsl(var(--primary)) !important; /* Primary purple border */
+  border-radius: var(--radius) !important;
+}
+
+.checkout-success-toast[data-sonner-toast][data-type="success"] {
+  background-color: hsl(262 52% 95%) !important; /* Soft purple background */
+  border-color: hsl(var(--primary)) !important;
+}
+
+.checkout-success-toast[data-sonner-toast][data-type="success"] [data-icon] {
+  color: hsl(var(--primary)) !important; /* Primary purple icon */
+}
+
+/* Hide the X button */
+.checkout-success-toast [data-close-button] {
+  display: none !important;
+}
+
+.checkout-success-toast button {
+  font-weight: 500 !important;
+  padding: 0.35rem 0.75rem !important;
+  border-radius: var(--radius) !important;
+  background-color: hsl(var(--primary)) !important; /* Primary purple button */
+  color: hsl(var(--primary-foreground)) !important;
+  transition: all 0.2s ease;
+  text-transform: none !important;
+  font-size: 0.875rem !important;
+}
+
+.checkout-success-toast button:hover {
+  filter: brightness(1.1) !important;
+}
+
+/* Remove the animation */
+.checkout-success-toast {
+  animation: none;
 }

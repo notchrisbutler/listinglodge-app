@@ -43,11 +43,13 @@ export default function SupportPage() {
                       We support JPG, PNG, and WEBP formats for image uploads.
                     </p>
                   </div>
-                  <div>
-                    <h3 className="font-medium">How do I cancel my subscription?</h3>
-                    <p className="text-sm text-muted-foreground mt-1">
-                      You can cancel your subscription anytime from the Account settings page.
-                    </p>
+                  <div className="space-y-4">
+                    <h3 className="font-medium">How are tokens consumed?</h3>
+                    <p className="text-muted-foreground">Tokens are consumed based on the complexity and length of the generation task. For example, generating a short property description might cost 1 token, while generating a longer blog post might cost 5 tokens.</p>
+                  </div>
+                  <div className="space-y-4">
+                    <h3 className="font-medium">Can I get a refund?</h3>
+                    <p className="text-muted-foreground">Refund policies are outlined in our Terms of Service. Generally, token purchases are non-refundable.</p>
                   </div>
                 </div>
               </CardContent>

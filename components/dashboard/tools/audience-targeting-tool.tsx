@@ -12,8 +12,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { useForm } from "react-hook-form"
 
 export function AudienceTargetingTool() {
+  const { control } = useForm()
+
   return (
     <Card className="border border-border/50 shadow-md bg-background">
       <CardHeader>
@@ -192,10 +195,10 @@ export function AudienceTargetingTool() {
                 </div>
                 
                 <div>
-                  <label className="text-sm font-medium mb-2 block">Key Features</label>
+                  <label className="text-sm font-medium mb-2 block">Property Features</label>
                   <Textarea 
-                    placeholder="What makes this property type special? (e.g., open floor plans, high ceilings, etc.)" 
-                    rows={3} 
+                    placeholder="What makes this property special? (e.g., open layouts, high ceilings, etc.)"
+                    className="min-h-[100px] resize-none"
                   />
                 </div>
                 

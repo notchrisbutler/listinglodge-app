@@ -57,11 +57,12 @@ export async function middleware(request: NextRequest) {
 
   const { data: { session } } = await supabase.auth.getSession()
 
-  // Add the auth callback path to the public paths
+  // Add the auth callback path and webhook path to the public paths
   const isPublicPath = 
     request.nextUrl.pathname.startsWith('/login') || 
     request.nextUrl.pathname.startsWith('/register') ||
-    request.nextUrl.pathname.startsWith('/auth/callback')
+    request.nextUrl.pathname.startsWith('/auth/callback') ||
+    request.nextUrl.pathname.startsWith('/api/webhooks/stripe') // Allow Stripe webhooks to bypass auth
 
   // If no session and not on public paths, redirect to login
   if (!session && !isPublicPath) {

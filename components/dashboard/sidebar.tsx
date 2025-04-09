@@ -44,7 +44,7 @@ const navigation = [
 export function DashboardSidebar() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const pathname = usePathname();
-  const { user, isLoading, refreshAuth } = useAuth();
+  const { user, isLoading, refreshAuth, tokenWallet } = useAuth();
   
   // Log whenever auth state changes
   useEffect(() => {
@@ -52,7 +52,7 @@ export function DashboardSidebar() {
       isLoading, 
       hasUser: !!user, 
       userEmail: user?.email,
-      userId: user?.id 
+      userId: user?.id, 
     });
     
     // If not loading but we don't have a user, try refreshing auth once
@@ -80,16 +80,18 @@ export function DashboardSidebar() {
             <Skeleton className="h-10 w-10 rounded-full" />
             <div className="flex flex-col space-y-1">
               <Skeleton className="h-4 w-32" /> 
-              <Skeleton className="h-3 w-20" />
             </div>
           </div>
-          <Skeleton className="h-4 w-24" />
           <Skeleton className="h-9 w-full" />
         </div>
       );
     }
 
-    logSidebar("UserMenu showing user data", { userEmail: user?.email });
+    // Get token balance with fallback to 0
+    const tokenBalance = tokenWallet?.balance || 0;
+
+    logSidebar("UserMenu showing user data", { userEmail: user?.email, tokenBalance });
+    
     return (
       <div className="flex flex-col bg-background/75 border-t border-border/50">
         <div className="flex items-center gap-3 p-4">
@@ -100,14 +102,14 @@ export function DashboardSidebar() {
             <span className="text-sm font-medium truncate max-w-[180px]">
               {user?.email ? user.email : 'Loading...'}
             </span>
-            <span className="text-xs text-muted-foreground">Professional Plan</span>
           </div>
         </div>
-        <div className="px-4 pb-4">
-          <div className="flex items-center gap-2 text-sm text-muted-foreground mb-3">
+        <div className="px-4 pb-4 space-y-3">
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <WalletIcon className="h-4 w-4 text-primary/70" />
-            Credits: <span className="font-medium text-foreground">100</span>
+            Credits: <span className="font-medium text-foreground">{tokenBalance}</span>
           </div>
+          
           <form action={logout}>
             <Button 
               type="submit"
@@ -204,18 +206,14 @@ export function DashboardSidebar() {
                   {isLoading ? (
                     <>
                       <Skeleton className="h-4 w-32 mb-1" />
-                      <Skeleton className="h-3 w-20" />
                       <Skeleton className="h-3 w-24 mt-2" />
                     </>
                   ) : (
                     <>
                       <p className="text-sm font-medium leading-none truncate">{user?.email}</p>
-                      <p className="text-xs leading-none text-muted-foreground">
-                        Professional Plan
-                      </p>
                       <div className="flex items-center gap-2 text-xs text-muted-foreground mt-2">
                         <WalletIcon className="h-3 w-3 text-primary/70" />
-                        Credits: <span className="font-medium text-foreground">100</span>
+                        Credits: <span className="font-medium text-foreground">{tokenWallet?.balance || 0}</span>
                       </div>
                     </>
                   )}

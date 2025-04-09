@@ -9,6 +9,57 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      subscriptions: {
+        Row: {
+          cancel_at_period_end: boolean | null
+          canceled_at: string | null
+          created_at: string
+          current_period_end: string | null
+          current_period_start: string | null
+          id: string
+          last_token_refresh: string | null
+          plan_type: Database["public"]["Enums"]["app_plan_type"]
+          status: Database["public"]["Enums"]["stripe_subscription_status"]
+          stripe_customer_id: string | null
+          stripe_price_id: string | null
+          stripe_subscription_id: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          cancel_at_period_end?: boolean | null
+          canceled_at?: string | null
+          created_at?: string
+          current_period_end?: string | null
+          current_period_start?: string | null
+          id?: string
+          last_token_refresh?: string | null
+          plan_type: Database["public"]["Enums"]["app_plan_type"]
+          status: Database["public"]["Enums"]["stripe_subscription_status"]
+          stripe_customer_id?: string | null
+          stripe_price_id?: string | null
+          stripe_subscription_id?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          cancel_at_period_end?: boolean | null
+          canceled_at?: string | null
+          created_at?: string
+          current_period_end?: string | null
+          current_period_start?: string | null
+          id?: string
+          last_token_refresh?: string | null
+          plan_type?: Database["public"]["Enums"]["app_plan_type"]
+          status?: Database["public"]["Enums"]["stripe_subscription_status"]
+          stripe_customer_id?: string | null
+          stripe_price_id?: string | null
+          stripe_subscription_id?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       token_log: {
         Row: {
           balance_after: number
@@ -121,10 +172,29 @@ export type Database = {
         }
         Returns: number
       }
+      check_subscription_renewals: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
+      refresh_subscription_tokens: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
     }
     Enums: {
+      app_plan_type: "free" | "personal" | "professional"
+      stripe_subscription_status:
+        | "active"
+        | "past_due"
+        | "unpaid"
+        | "canceled"
+        | "incomplete"
+        | "incomplete_expired"
+        | "trialing"
+        | "paused"
       token_change_type:
         | "SIGNUP_BONUS"
+        | "SUBSCRIPTION_REFRESH"
         | "STRIPE_PURCHASE"
         | "ACTION_USAGE"
         | "MANUAL_ADJUSTMENT"
@@ -244,8 +314,20 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      app_plan_type: ["free", "personal", "professional"],
+      stripe_subscription_status: [
+        "active",
+        "past_due",
+        "unpaid",
+        "canceled",
+        "incomplete",
+        "incomplete_expired",
+        "trialing",
+        "paused",
+      ],
       token_change_type: [
         "SIGNUP_BONUS",
+        "SUBSCRIPTION_REFRESH",
         "STRIPE_PURCHASE",
         "ACTION_USAGE",
         "MANUAL_ADJUSTMENT",

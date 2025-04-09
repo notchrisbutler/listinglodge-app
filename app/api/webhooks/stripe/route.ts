@@ -3,6 +3,7 @@ import { headers } from 'next/headers'
 import Stripe from 'stripe'
 import { stripe } from '@/lib/stripe' // Use the initialized Stripe client from lib
 import { createClient } from '@supabase/supabase-js' // Import Supabase JS client
+import type { Database, TablesInsert, TablesUpdate, Enums } from '@/types/supabase' // Import Supabase types
 
 // Define types for expected metadata (Ensure consistency with Server Action)
 interface CheckoutSessionMetadata {
@@ -21,102 +22,98 @@ const TOKENS_PER_PACKAGE: Record<CheckoutSessionMetadata['packageId'], number> =
 if (!process.env.STRIPE_WEBHOOK_SECRET) {
   throw new Error('STRIPE_WEBHOOK_SECRET is not set')
 }
-if (!process.env.SUPABASE_URL) {
-  throw new Error('SUPABASE_URL is not set')
+if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
+  throw new Error('NEXT_PUBLIC_SUPABASE_URL is not set')
 }
 if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
   throw new Error('SUPABASE_SERVICE_ROLE_KEY is not set')
 }
 
 // Disable default body parsing for this route to access the raw body
-export const config = {
-  api: {
-    bodyParser: false,
-  },
-}
+export const dynamic = "force-dynamic"; // Make sure the route is not statically optimized
 
 // Supabase Admin Client - Initialized outside handler for potential reuse
 // Uses SERVICE_ROLE_KEY for elevated privileges
-const supabaseAdmin = createClient(
-  process.env.SUPABASE_URL!,
+const supabaseAdmin = createClient<Database>(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 )
 
-// Helper function to read raw body from ReadableStream into a Buffer
-async function buffer(readable: ReadableStream<Uint8Array>): Promise<Buffer> {
-  const reader = readable.getReader();
-  const chunks: Uint8Array[] = [];
-
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) {
-      break;
-    }
-    if (value) {
-        chunks.push(value);
+// Helper function to safely truncate metadata values to stay within Stripe's 500 character limit
+function sanitizeMetadata(metadata: Record<string, any>): Record<string, any> {
+  const sanitized: Record<string, any> = {};
+  
+  for (const [key, value] of Object.entries(metadata)) {
+    if (typeof value === 'string' && value.length > 500) {
+      // Truncate string values longer than 500 characters
+      sanitized[key] = value.substring(0, 497) + '...';
+      console.log(`Truncated metadata value for key '${key}' from ${value.length} to 500 characters`);
+    } else {
+      sanitized[key] = value;
     }
   }
-
-  return Buffer.concat(chunks);
+  
+  return sanitized;
 }
 
-export async function POST(req: NextRequest) {
-  const reqHeaders = headers() // Get request headers
-  const signature = reqHeaders.get('stripe-signature')
-
-  // Read the raw body
-  let rawBody: Buffer
-  try {
-    if (!req.body) {
-        throw new Error('Request body is missing');
-    }
-    rawBody = await buffer(req.body)
-  } catch (err: any) {
-    console.error('Error reading raw request body:', err.message)
-    return NextResponse.json(
-      { error: `Webhook Error: Could not read body: ${err.message}` },
-      { status: 400 }
-    )
+// Helper function to read raw body from ReadableStream into a Buffer
+async function buffer(readable: ReadableStream<Uint8Array> | null): Promise<Buffer> {
+  if (!readable) {
+    throw new Error('Missing request body stream');
   }
-
-  let event: Stripe.Event
+  
   try {
-    // Verify webhook signature
-    if (!signature) {
-      throw new Error('Stripe-Signature header is missing')
+    const reader = readable.getReader();
+    const chunks: Uint8Array[] = [];
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) {
+        break;
+      }
+      if (value) {
+        chunks.push(value);
+      }
     }
 
-    event = stripe.webhooks.constructEvent(
-      rawBody,
-      signature,
-      process.env.STRIPE_WEBHOOK_SECRET!
-    )
-    console.log(`Received Stripe event: ${event.type} (${event.id})`)
-
-  } catch (err: any) {
-    console.error('Webhook signature verification failed:', err.message)
-    return NextResponse.json(
-      { error: `Webhook signature error: ${err.message}` },
-      { status: 400 }
-    )
+    return Buffer.concat(chunks);
+  } catch (error) {
+    console.error('Error reading from stream:', error);
+    throw new Error(`Stream reading error: ${error instanceof Error ? error.message : String(error)}`);
   }
+}
 
+// Process webhook event asynchronously (after sending response)
+async function processWebhookEvent(event: Stripe.Event): Promise<void> {
+  console.log(`🔄 Processing Stripe event: ${event.type} (${event.id})`);
+  
   try {
     // Handle the checkout.session.completed event
     if (event.type === 'checkout.session.completed') {
       const session = event.data.object as Stripe.Checkout.Session
+      
+      // Log the entire session object for debugging
+      console.log('Full session object:', JSON.stringify({
+        id: session.id,
+        status: session.status,
+        payment_status: session.payment_status,
+        mode: session.mode,
+        metadata: session.metadata,
+        customer: typeof session.customer === 'string' ? session.customer : session.customer?.id,
+        payment_intent: typeof session.payment_intent === 'string' ? session.payment_intent : session.payment_intent?.id,
+        has_line_items: session.line_items !== undefined
+      }, null, 2));
+      
       const metadata = session.metadata as CheckoutSessionMetadata | null
 
       // Validate required metadata
       if (!metadata || !metadata.userId || !metadata.packageId) {
         console.error(
-          'Webhook Error: Missing or invalid metadata in session:', session.id,
-          metadata
+          'Webhook Error: Missing or invalid metadata in session:', 
+          session.id,
+          JSON.stringify(metadata)
         )
-        return NextResponse.json(
-          { error: 'Webhook Error: Missing required metadata (userId, packageId).' },
-          { status: 400 }
-        )
+        return;
       }
 
       const userId = metadata.userId
@@ -129,67 +126,104 @@ export async function POST(req: NextRequest) {
         console.error(
           `Webhook Error: Invalid packageId '${packageId}' found in metadata for session ${stripeSessionId}`
         )
-        return NextResponse.json(
-          { error: `Webhook Error: Invalid packageId '${packageId}'.` },
-          { status: 400 }
-        )
+        return;
       }
 
       console.log(
         `Processing successful checkout for user: ${userId}, package: ${packageId}, tokens: ${tokensToAdd}`
       )
 
-      // Call the SQL function to add tokens and log, handling idempotency
-      const { data: logId, error: rpcError } = await supabaseAdmin.rpc(
-        'add_tokens_and_log',
-        {
-          user_target_id: userId,
-          amount_to_add: tokensToAdd,
-          change_meta: {
-            stripe_session_id: stripeSessionId,
-            stripe_charge_id: typeof stripeChargeId === 'string' ? stripeChargeId : stripeChargeId?.id,
-            package_id: packageId,
-          },
-          idempotency_key: event.id, // Use Stripe event ID for idempotency
+      try {
+        // Call the SQL function to add tokens and log, handling idempotency
+        const { data: logId, error: rpcError } = await supabaseAdmin.rpc(
+          'add_tokens_and_log',
+          {
+            user_target_id: userId,
+            amount_to_add: tokensToAdd,
+            change_meta: sanitizeMetadata({
+              stripe_session_id: stripeSessionId,
+              stripe_charge_id: typeof stripeChargeId === 'string' ? stripeChargeId : stripeChargeId?.id,
+              package_id: packageId,
+            }),
+            idempotency_key: event.id, // Use Stripe event ID for idempotency
+          }
+        )
+
+        if (rpcError) {
+          // The RPC function handles unique_violation internally and returns null.
+          // Other errors are genuine problems.
+          console.error(
+            `RPC Error processing event ${event.id} for user ${userId}:`,
+            rpcError.message,
+            JSON.stringify(rpcError, null, 2)
+          )
+          return;
         }
-      )
 
-      if (rpcError) {
-        // The RPC function handles unique_violation internally and returns null.
-        // Other errors are genuine problems.
-        console.error(
-          `RPC Error processing event ${event.id} for user ${userId}:`,
-          rpcError.message
-        )
-        return NextResponse.json(
-          { error: `Database update error: ${rpcError.message}` },
-          { status: 500 }
-        )
+        if (logId === null) {
+            // This indicates the RPC function detected a duplicate via the idempotency key
+            console.log(`Idempotency check: Event ${event.id} already processed.`);
+        } else {
+            console.log(`✅ Successfully added ${tokensToAdd} tokens for user ${userId}. Log ID: ${logId}`);
+        }
+      } catch (err: any) {
+        console.error(`Unexpected error in RPC call for event ${event.id}:`, err.message, err.stack);
       }
-
-      if (logId === null) {
-          // This indicates the RPC function detected a duplicate via the idempotency key
-          console.log(`Idempotency check: Event ${event.id} already processed.`);
-      } else {
-          console.log(`Successfully added ${tokensToAdd} tokens for user ${userId}. Log ID: ${logId}`);
-      }
-
-      // Return 200 OK even if it was a duplicate - Stripe expects this.
-      return NextResponse.json({ received: true }, { status: 200 })
 
     } else {
       // Handle other event types if needed
       console.log(`Received unhandled event type: ${event.type}`)
     }
-
-    // Default success response if event type wasn't 'checkout.session.completed'
-    return NextResponse.json({ received: true }, { status: 200 })
-
   } catch (error: any) {
-    console.error('Error processing webhook event:', error.message)
+    console.error(`❌ Error processing webhook event ${event.type} (${event.id}):`, error.message);
+  }
+}
+
+export async function POST(req: NextRequest) {
+  console.log('⚡ Stripe webhook received');
+  const startTime = Date.now();
+  const reqHeaders = headers(); // Get request headers
+  const signature = reqHeaders.get('stripe-signature');
+
+  if (!signature) {
+    console.error('❌ Missing stripe-signature header');
     return NextResponse.json(
-      { error: `Webhook handler error: ${error.message}` },
-      { status: 500 }
-    )
+      { error: 'Webhook Error: Missing signature header' },
+      { status: 400 }
+    );
+  }
+
+  let event: Stripe.Event;
+  try {
+    // Read the raw body - but keep this quick
+    const rawBody = await buffer(req.body);
+    
+    // Verify the webhook signature
+    event = stripe.webhooks.constructEvent(
+      rawBody,
+      signature,
+      process.env.STRIPE_WEBHOOK_SECRET!
+    );
+    
+    // Important: Return a 200 response immediately
+    console.log(`✅ Verified Stripe event: ${event.type} (${event.id}). Processing asynchronously...`);
+    
+    // Process the event asynchronously to avoid timeouts
+    processWebhookEvent(event).catch(err => {
+      console.error(`❌ Async processing error for ${event.id}:`, err);
+    });
+    
+    // Return success response immediately
+    const responseTime = Date.now() - startTime;
+    return NextResponse.json(
+      { received: true, processingTime: `${responseTime}ms` }, 
+      { status: 200 }
+    );
+  } catch (err: any) {
+    console.error(`❌ Webhook verification failed:`, err.message);
+    return NextResponse.json(
+      { error: `Webhook Error: ${err.message}` },
+      { status: 400 }
+    );
   }
 } 

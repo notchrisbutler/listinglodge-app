@@ -2,18 +2,17 @@
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { WalletIcon, PlusIcon, InformationCircleIcon } from "@heroicons/react/24/outline";
+import { WalletIcon, PlusIcon } from "@heroicons/react/24/outline";
 import { DashboardOverview } from "@/components/dashboard/overview";
 import { useTokens } from "@/contexts/tokens-context";
-
-// Mock user data - replace with actual data fetching
-const userPlan = {
-  name: "Pro",
-  creditsPerMonth: 100,
-};
+import { useAuth } from "@/components/providers/auth-provider";
 
 export default function TokensPage() {
   const { openTokenModal } = useTokens();
+  const { user, isLoading, tokenWallet } = useAuth();
+  
+  // Get token balance with fallback to 0
+  const tokenBalance = tokenWallet?.balance || 0;
 
   return (
     <main className="py-10">
@@ -29,15 +28,6 @@ export default function TokensPage() {
             <DashboardOverview />
           </div>
 
-          {/* Plan Information Banner */}
-          <div className="bg-primary/10 border border-primary/30 text-primary-foreground p-4 rounded-lg flex items-center gap-3 shadow-sm">
-            <InformationCircleIcon className="h-6 w-6 text-primary" />
-            <p className="text-sm font-medium text-primary">
-              You are on the <span className="font-bold">{userPlan.name}</span> plan, including{" "}
-              <span className="font-bold">{userPlan.creditsPerMonth}</span> credits per month.
-            </p>
-          </div>
-
           <div className="grid gap-6 md:grid-cols-2">
             <Card className="border border-border/50 shadow-md bg-background hover:border-primary/50 hover:shadow-lg transition-all">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -46,7 +36,7 @@ export default function TokensPage() {
               </CardHeader>
               <CardContent>
                 <div className="mt-4 space-y-4">
-                  <div className="text-3xl font-bold">100</div>
+                  <div className="text-3xl font-bold">{tokenBalance}</div>
                   <p className="text-sm text-muted-foreground">
                     Credits refresh on the 1st of each month
                   </p>

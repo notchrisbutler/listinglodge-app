@@ -7,6 +7,25 @@ if (!process.env.STRIPE_SECRET_KEY) {
 
 // Initialize Stripe with the API key and specify the API version
 export const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
-  apiVersion: '2025-03-31.basil', // Use the latest stable API version
+  apiVersion: '2025-02-24.acacia' as any, // Use the latest stable API version
   typescript: true, // Enable TypeScript support
+  appInfo: {
+    name: 'ListingLodge',
+    version: '1.0.0',
+  },
+  telemetry: false, // Disable telemetry for potentially faster webhook processing
 })
+
+// Helper function for webhook verification
+export const constructWebhookEvent = (
+  payload: string,
+  signature: string,
+  webhookSecret: string
+): Stripe.Event => {
+  try {
+    return stripe.webhooks.constructEvent(payload, signature, webhookSecret)
+  } catch (err: any) {
+    console.error(`⚠️ Webhook signature verification failed: ${err.message}`)
+    throw new Error(`Webhook Error: ${err.message}`)
+  }
+}

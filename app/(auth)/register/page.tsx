@@ -102,19 +102,6 @@ export default function RegisterPage() {
                 </motion.div>
                </AccordionContent>
              </AccordionItem>
-             <AccordionItem value="item-3">
-               <AccordionTrigger>Can I manage multiple properties?</AccordionTrigger>
-               <AccordionContent>
-                <motion.div
-                  variants={accordionContentVariants}
-                  initial="collapsed"
-                  animate="open"
-                  exit="collapsed"
-                >
-                  Absolutely! ListingLodge is designed to scale with your needs, whether you manage one property or hundreds.
-                 </motion.div>
-               </AccordionContent>
-             </AccordionItem>
            </Accordion>
         </motion.div>
 
