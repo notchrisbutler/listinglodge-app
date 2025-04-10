@@ -20,10 +20,7 @@ function TokensContent({ children }: { children: ReactNode }) {
       {children}
       <TokenPurchaseModal 
         isOpen={isTokenModalOpen} 
-        onOpenChange={(open) => {
-          if (open) openTokenModal();
-          else closeTokenModal();
-        }}
+        onClose={closeTokenModal} 
       />
     </>
   );

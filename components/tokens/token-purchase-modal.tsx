@@ -152,9 +152,20 @@ export function TokenPurchaseModal({
     }
   }
 
+  // Force close function to ensure modal can be closed
+  const forceClose = () => {
+    console.log("forceClose called in modal"); 
+    if (typeof onClose === 'function') {
+      console.log("Calling parent onClose");
+      onClose(); 
+    } else {
+      console.log("onClose is not a function or not provided");
+    }
+  };
+
   const handleModalChange = (open: boolean) => {
     if (!open) {
-      onClose()
+      forceClose();
     }
   }
 
@@ -200,10 +211,12 @@ export function TokenPurchaseModal({
           </div>
         </div>
 
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose} disabled={isLoading}>
-            Cancel
-          </Button>
+        <DialogFooter className="flex justify-between items-center">
+          <DialogClose asChild>
+            <Button variant="outline" onClick={forceClose} disabled={isLoading}>
+              Cancel
+            </Button>
+          </DialogClose>
           <Button
             onClick={handlePurchaseClick}
             disabled={!selectedPackage || isLoading}
